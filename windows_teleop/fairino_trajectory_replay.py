@@ -76,33 +76,52 @@ def main():
 
     # Move to start
     print(f"\nReady to move to start position. Press ENTER to continue or Ctrl-C to abort.")
-    input()
-    call(rb, "MoveJ", waypoints[0]["joints"], 0, 0, 0.0, 0.0, 20, [0,0,0,0], -1, 0, [0,0,0,0,0,0])
+    while msvcrt.getch() not in (b'\r', b'\n'):
+        pass
+    call(rb, "SetSpeed", speed)
+    call(rb, "MoveJ", waypoints[0]["joints"], 0, 0)
     time.sleep(2)
 
     # Replay
     print(f"\nReplaying — speed: {speed}%")
-    print("  +  speed up    |    -  slow down    |    q  stop\n")
+    print("  Up/Down arrows = speed +/-    |    q = stop\n")
+
+    def poll_keys(rb, speed, dt):
+        """Sleep for dt seconds while polling for keypresses. Returns updated speed or None to stop."""
+        deadline = time.time() + dt
+        while time.time() < deadline:
+            if msvcrt.kbhit():
+                key = msvcrt.getch()
+                if key in (b'\xe0', b'\x00'):   # arrow key prefix (both variants)
+                    key2 = msvcrt.getch()
+                    if key2 == b'H':             # up arrow → speed up
+                        speed = min(SPEED_MAX, speed + SPEED_STEP)
+                        call(rb, "SetSpeed", speed)
+                        print(f"Speed: {speed}%")
+                    elif key2 == b'P':           # down arrow → speed down
+                        speed = max(SPEED_MIN, speed - SPEED_STEP)
+                        call(rb, "SetSpeed", speed)
+                        print(f"Speed: {speed}%")
+                elif key in (b'q', b'Q'):
+                    return None                  # signal stop
+            time.sleep(0.01)
+        return speed
 
     try:
         for i in range(1, len(waypoints)):
             prev = waypoints[i - 1]
             cur  = waypoints[i]
 
-            # Check for keypress
-            if msvcrt.kbhit():
-                key = msvcrt.getch()
-                if key in (b'+', b'='):
-                    speed = min(SPEED_MAX, speed + SPEED_STEP)
-                    print(f"Speed: {speed}%")
-                elif key == b'-':
-                    speed = max(SPEED_MIN, speed - SPEED_STEP)
-                    print(f"Speed: {speed}%")
-                elif key in (b'q', b'Q'):
-                    print("Stopping.")
-                    break
+            # Send waypoint (non-blocking)
+            call(rb, "MoveJ", cur["joints"], 0, 0, [0.0,0.0,0.0,0.0,0.0,0.0], speed, 0.0, speed)
 
-            call(rb, "MoveJ", cur["joints"], 0, 0, 0.0, 0.0, speed, [0,0,0,0], -1, 0, [0,0,0,0,0,0])
+            # Wait the recorded interval (scaled by base speed), polling keys
+            dt = cur["timestamp"] - prev["timestamp"]
+            result = poll_keys(rb, speed, dt)
+            if result is None:
+                print("Stopping.")
+                break
+            speed = result
 
     except KeyboardInterrupt:
         pass

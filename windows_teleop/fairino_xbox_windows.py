@@ -54,6 +54,8 @@ class RobotController:
         self._record_stop = threading.Event()
         self._record_thread = None
         self.running = True
+        self.lb_held = False
+        self.rb_held = False
 
         # Initial soft limits (FR5 factory ±175 deg)
         try:
@@ -68,7 +70,7 @@ class RobotController:
 
     def _init_gripper(self):
         """Initializes the gripper based on the working example."""
-        print("─" * 20)
+        print("-" * 20)
         print("Attempting simplified gripper initialization (Manu=4, Type=0)...")
         try:
             # From the working example, the sequence is: Config -> Activate.
@@ -78,7 +80,7 @@ class RobotController:
             self._call("ActGripper", 1, 1)
             time.sleep(2) # Give the gripper time to activate
             print("  [INFO] Simplified gripper initialization sequence sent.")
-            print("─" * 20)
+            print("-" * 20)
         except Exception as e:
             print(f"  [ERROR] Gripper initialization failed: {e}")
 
@@ -151,10 +153,12 @@ class RobotController:
     def _print_controls(self):
         print("-" * 55)
         print(f"  Mode: {self.mode}  |  Speed: {self.speed}%  |  Joint: J{self.selected_joint}")
-        print("  LS = X/Y  |  RS(ud) = Z  |  LT = Pitch  |  RT = Yaw")
+        print("  LS = X/Y  |  RS(ud) = Z")
+        print("  LB/RB = Pitch-/+ (CARTESIAN) | Prev/Next Joint (JOINT)")
+        print("  LT = Jaw-  |  RT = Jaw+")
         print("  A = Open Gripper  |  B = Close Gripper")
         print("  X = Speed-  |  Y = Speed+  |  RS(lr) = Speed adj")
-        print("  LB/RB = Prev/Next Joint  |  Back = Record  |  Start = Mode Toggle")
+        print("  Back = Record  |  Start = Mode Toggle")
         print("  D-Pad Up = EMERGENCY STOP")
         print("-" * 55)
 
@@ -197,6 +201,18 @@ class RobotController:
                         self._call("ImmStopJOG")
                         print("** EMERGENCY STOP **")
 
+                    # ── LB / RB hold state (pitch control in CARTESIAN) ──
+                    if event.code == "BTN_TL":               # LB
+                        self.lb_held = (event.state == 1)
+                        if event.state == 1 and self.mode == "JOINT":
+                            self.selected_joint = max(1, self.selected_joint - 1)
+                            print(f"Joint: J{self.selected_joint}")
+                    elif event.code == "BTN_TR":             # RB
+                        self.rb_held = (event.state == 1)
+                        if event.state == 1 and self.mode == "JOINT":
+                            self.selected_joint = min(6, self.selected_joint + 1)
+                            print(f"Joint: J{self.selected_joint}")
+
                     # ── Button presses (state == 1) ──
                     elif event.state == 1:
                         if event.code == "BTN_SELECT":       # Back → Record
@@ -218,14 +234,6 @@ class RobotController:
                         elif event.code == "BTN_NORTH":      # Y
                             self.speed = min(SPEED_MAX, self.speed + SPEED_STEP)
                             print(f"Speed: {self.speed}%")
-                        elif event.code == "BTN_TL":         # LB
-                            if self.mode == "JOINT":
-                                self.selected_joint = max(1, self.selected_joint - 1)
-                                print(f"Joint: J{self.selected_joint}")
-                        elif event.code == "BTN_TR":         # RB
-                            if self.mode == "JOINT":
-                                self.selected_joint = min(6, self.selected_joint + 1)
-                                print(f"Joint: J{self.selected_joint}")
 
                 # ── RS X-axis → Speed control ──
                 now = time.time()
@@ -255,12 +263,20 @@ class RobotController:
                         print(f"Moving Z {'+'if d else'-'}")
                         self._call("StartJOG", 2, 3, d, 100.0, self.speed, 100.0)
                         moved = True
-                    elif axes["LT"] > TRIGGER_THRESHOLD:
+                    elif self.lb_held:
                         print("Rotating Pitch-")
                         self._call("StartJOG", 2, 5, 0, 100.0, self.speed, 100.0)
                         moved = True
+                    elif self.rb_held:
+                        print("Rotating Pitch+")
+                        self._call("StartJOG", 2, 5, 1, 100.0, self.speed, 100.0)
+                        moved = True
+                    elif axes["LT"] > TRIGGER_THRESHOLD:
+                        print("Jaw-")
+                        self._call("StartJOG", 2, 6, 0, 100.0, self.speed, 100.0)
+                        moved = True
                     elif axes["RT"] > TRIGGER_THRESHOLD:
-                        print("Rotating Yaw+")
+                        print("Jaw+")
                         self._call("StartJOG", 2, 6, 1, 100.0, self.speed, 100.0)
                         moved = True
 

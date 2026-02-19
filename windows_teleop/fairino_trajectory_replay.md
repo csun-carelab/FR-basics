@@ -57,12 +57,12 @@ Once playback begins, use keyboard input in the terminal:
 
 | Key | Action |
 |-----|--------|
-| `+` or `=` | Increase speed by 5% |
-| `-` | Decrease speed by 5% |
+| `↑` Up arrow | Increase speed by 5% |
+| `↓` Down arrow | Decrease speed by 5% |
 | `q` or `Q` | Stop playback |
 | `Ctrl-C` | Abort immediately |
 
-Speed is clamped between **5%** and **100%**.
+Speed is clamped between **5%** and **100%**. Speed changes apply immediately via `SetSpeed()` on the robot controller — effective even mid-motion.
 
 ---
 
@@ -70,9 +70,10 @@ Speed is clamped between **5%** and **100%**.
 
 1. CSV is loaded and downsampled (consecutive waypoints with < 0.3 deg change on all joints are dropped).
 2. Robot connects to `192.168.58.2`.
-3. Press **ENTER** to confirm move to the first waypoint (at 20% speed).
+3. Press **ENTER** to confirm move to the first waypoint.
 4. After a 2-second settle, full replay begins waypoint-by-waypoint using `MoveJ`.
-5. On exit (key or Ctrl-C), `ImmStopJOG` is called to halt motion.
+5. Between each waypoint the script waits the recorded time interval, polling for keypresses every 10 ms.
+6. On exit (key or Ctrl-C), `ImmStopJOG` is called to halt motion.
 
 ---
 

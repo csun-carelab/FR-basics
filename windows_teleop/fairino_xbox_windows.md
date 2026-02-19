@@ -56,10 +56,12 @@ No command-line arguments. Configuration is at the top of the script.
 | Left Stick Up/Down | +/− X axis |
 | Left Stick Left/Right | +/− Y axis |
 | Right Stick Up/Down | +/− Z axis |
-| Left Trigger (LT) | Pitch− (rotation axis 5) |
-| Right Trigger (RT) | Yaw+ (rotation axis 6) |
+| **LB** (hold) | Pitch− (rotation axis 5) |
+| **RB** (hold) | Pitch+ (rotation axis 5) |
+| Left Trigger (LT) | Jaw− (rotation axis 6) |
+| Right Trigger (RT) | Jaw+ (rotation axis 6) |
 
-Release all sticks/triggers to stop motion (`StopJOG`).
+Release all sticks/triggers/buttons to stop motion (`StopJOG`).
 
 ---
 
