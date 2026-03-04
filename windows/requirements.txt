@@ -1,0 +1,3 @@
+numpy
+pybullet
+inputs        # optional: Xbox controller teleoperation only
